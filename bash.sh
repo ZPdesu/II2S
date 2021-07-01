@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python run.py --In_W_space -steps 1300  -learning_rate 0.01 --input_dir input --output_dir output/generated_images --NPY_folder output/latent_representations --L2_regularizer --l2_regularize_weight 0.001
