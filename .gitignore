@@ -134,6 +134,5 @@ wandb/
 *.lmdb/
 *.pkl
 *.pt
-.idea/
-.idea/*
-cache/
+.idea
+cache
