@@ -134,3 +134,4 @@ wandb/
 *.lmdb/
 *.pkl
 *.pt
+.idea/
