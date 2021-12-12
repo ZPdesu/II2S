@@ -135,3 +135,4 @@ wandb/
 *.pkl
 *.pt
 .idea/
+.idea/*
