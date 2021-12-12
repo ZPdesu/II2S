@@ -136,3 +136,4 @@ wandb/
 *.pt
 .idea/
 .idea/*
+cache/
