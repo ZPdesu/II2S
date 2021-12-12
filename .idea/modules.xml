@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/stylegan2-pytorch-embedding.iml" filepath="$PROJECT_DIR$/.idea/stylegan2-pytorch-embedding.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/II2S.iml" filepath="$PROJECT_DIR$/.idea/II2S.iml" />
     </modules>
   </component>
 </project>

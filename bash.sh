@@ -1,1 +1,9 @@
-CUDA_VISIBLE_DEVICES=0 python run.py --In_W_space -steps 1300  -learning_rate 0.01 --input_dir input --output_dir output/generated_images --NPY_folder output/latent_representations --L2_regularizer --l2_regularize_weight 0.001
+#!/usr/bin/env bash
+
+#python main.py --ckpt pretrained_models/metfaces.pt --PCA_path pretrained_models/PCA_metfaces.npz --size 1024
+
+#python main.py --ckpt pretrained_models/afhqcat.pt --PCA_path pretrained_models/PCA_afhqcat.npz --size 512
+#
+#python main.py --ckpt pretrained_models/afhqwild.pt --PCA_path pretrained_models/PCA_afhqwild.npz --size 512
+
+python main.py --ckpt pretrained_models/afhqdog.pt --PCA_path pretrained_models/PCA_afhqdog.npz --size 512
