@@ -34,9 +34,6 @@ class Net(nn.Module):
 
 
 
-    def check_and_download_sTYmodels(self):
-        pass
-
     def build_PCA_model(self, PCA_path):
 
         with torch.no_grad():
@@ -57,7 +54,9 @@ class Net(nn.Module):
 
     def load_PCA_model(self):
         device = self.opts.device
-        PCA_path = self.opts.PCA_path
+
+        PCA_path = self.opts.ckpt[:-3] + '_PCA.npz'
+
         if not os.path.isfile(PCA_path):
             self.build_PCA_model(PCA_path)
 

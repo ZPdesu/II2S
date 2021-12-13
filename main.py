@@ -46,7 +46,6 @@ if __name__ == "__main__":
     parser.add_argument('--channel_multiplier', type=int, default=2)
     parser.add_argument('--latent', type=int, default=512)
     parser.add_argument('--n_mlp', type=int, default=8)
-    parser.add_argument('--PCA_path', type=str, default='pretrained_models/PCA_ffhq.npz')
 
     # loss options
     parser.add_argument('--percept_lambda', type=float, default=1.0, help='Perceptual loss multiplier factor')
