@@ -31,6 +31,7 @@ class Net(nn.Module):
 
         for param in self.generator.parameters():
             param.requires_grad = False
+        self.generator.eval()
 
 
 
@@ -67,13 +68,13 @@ class Net(nn.Module):
 
 
 
-    def make_noise(self):
-        noises_single = self.generator.make_noise()
-        noises = []
-        for noise in noises_single:
-            noises.append(noise.repeat(1, 1, 1, 1).normal_())
-
-        return noises
+    # def make_noise(self):
+    #     noises_single = self.generator.make_noise()
+    #     noises = []
+    #     for noise in noises_single:
+    #         noises.append(noise.repeat(1, 1, 1, 1).normal_())
+    #
+    #     return noises
 
     def cal_layer_num(self):
         if self.opts.size == 1024:

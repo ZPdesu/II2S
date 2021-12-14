@@ -21,7 +21,7 @@ class II2S(nn.Module):
         self.net = Net(self.opts)
         self.load_downsampling()
         self.setup_loss_builder()
-
+        print(100)
 
 
     def load_downsampling(self):
@@ -37,20 +37,21 @@ class II2S(nn.Module):
             'adamax': torch.optim.Adamax
         }
 
+        latent = []
         if (self.opts.tile_latent):
-            self.latent = []
             tmp = self.net.latent_avg.clone().detach().cuda()
             tmp.requires_grad = True
             for i in range(self.net.layer_num):
-                self.latent.append(tmp)
+                latent.append(tmp)
             self.optimizer = opt_dict[self.opts.opt_name]([tmp], lr=self.opts.learning_rate)
         else:
-            self.latent = []
             for i in range(self.net.layer_num):
                 tmp = self.net.latent_avg.clone().detach().cuda()
                 tmp.requires_grad = True
-                self.latent.append(tmp)
-            self.optimizer = opt_dict[self.opts.opt_name](self.latent, lr=self.opts.learning_rate)
+                latent.append(tmp)
+            self.optimizer = opt_dict[self.opts.opt_name](latent, lr=self.opts.learning_rate)
+
+        return latent
 
 
     def setup_dataloader(self, image_path=None):
@@ -64,18 +65,19 @@ class II2S(nn.Module):
 
 
     def invert_images(self, image_path=None):
+
+
         self.setup_dataloader(image_path=image_path)
         device = self.opts.device
         ibar = tqdm(self.dataloader, desc='Images')
         for ref_im_H, ref_im_L, ref_name in ibar:
-            self.setup_optimizer()
+            latent = self.setup_optimizer()
             pbar = tqdm(range(self.opts.steps), desc='Embedding', leave=False)
             for step in pbar:
                 self.optimizer.zero_grad()
-                latent_in = torch.stack(self.latent).unsqueeze(0)
-                noises = self.net.make_noise()
+                latent_in = torch.stack(latent).unsqueeze(0)
 
-                gen_im, _ = self.net.generator([latent_in], input_is_latent=True, return_latents=False, noise=noises)
+                gen_im, _ = self.net.generator([latent_in], input_is_latent=True, return_latents=False)
                 im_dict = {
                     'ref_im_H': ref_im_H.to(device),
                     'ref_im_L': ref_im_L.to(device),
@@ -138,4 +140,8 @@ class II2S(nn.Module):
         np.save(latent_path, save_latent)
 
 
-
+    def set_seed(self):
+        if self.opt.seed:
+            torch.manual_seed(self.opt.seed)
+            torch.cuda.manual_seed(self.opt.seed)
+            torch.backends.cudnn.deterministic = True

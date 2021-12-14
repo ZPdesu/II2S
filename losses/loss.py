@@ -16,6 +16,7 @@ class LossBuilder(torch.nn.Module):
         else:
             use_gpu = False
         self.percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=use_gpu)
+        self.percept.eval()
         # self.percept = VGGLoss()
 
 
@@ -52,5 +53,5 @@ class LossBuilder(torch.nn.Module):
                 }
             tmp_loss = loss_fun_dict[loss_type](**var_dict)
             losses[loss_type] = tmp_loss
-            loss += float(weight)*tmp_loss
+            loss += weight*tmp_loss
         return loss, losses

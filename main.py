@@ -20,10 +20,10 @@ def main(args):
     ii2s.invert_images()
 
     ##### Option 2: image path
-    # ii2s.invert_images('input/face/14.png')
+    # ii2s.invert_images('input/face/20.png')
 
     ##### Option 3: image path list
-    # ii2s.invert_images(['input/face/14.png', 'input/face/20.png'])
+    # ii2s.invert_images(['input/face/35.png', 'input/face/20.png'])
 
 
 
@@ -54,6 +54,7 @@ if __name__ == "__main__":
 
     # arguments
     parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--tile_latent', action='store_true', help='Whether to forcibly tile the same latent N times')
     parser.add_argument('--opt_name', type=str, default='adam', help='Optimizer to use in projected gradient descent')
     parser.add_argument('--learning_rate', type=float, default=0.01, help='Learning rate to use during optimization')
