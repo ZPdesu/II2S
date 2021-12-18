@@ -43,15 +43,15 @@ class II2S(nn.Module):
             tmp.requires_grad = True
             for i in range(self.net.layer_num):
                 latent.append(tmp)
-            self.optimizer = opt_dict[self.opts.opt_name]([tmp], lr=self.opts.learning_rate)
+            optimizer = opt_dict[self.opts.opt_name]([tmp], lr=self.opts.learning_rate)
         else:
             for i in range(self.net.layer_num):
                 tmp = self.net.latent_avg.clone().detach().cuda()
                 tmp.requires_grad = True
                 latent.append(tmp)
-            self.optimizer = opt_dict[self.opts.opt_name](latent, lr=self.opts.learning_rate)
+            optimizer = opt_dict[self.opts.opt_name](latent, lr=self.opts.learning_rate)
 
-        return latent
+        return optimizer, latent
 
 
     def setup_dataloader(self, image_path=None):
@@ -71,10 +71,10 @@ class II2S(nn.Module):
         device = self.opts.device
         ibar = tqdm(self.dataloader, desc='Images')
         for ref_im_H, ref_im_L, ref_name in ibar:
-            latent = self.setup_optimizer()
+            optimizer, latent = self.setup_optimizer()
             pbar = tqdm(range(self.opts.steps), desc='Embedding', leave=False)
             for step in pbar:
-                self.optimizer.zero_grad()
+                optimizer.zero_grad()
                 latent_in = torch.stack(latent).unsqueeze(0)
 
                 gen_im, _ = self.net.generator([latent_in], input_is_latent=True, return_latents=False)
@@ -87,7 +87,7 @@ class II2S(nn.Module):
 
                 loss, loss_dic = self.cal_loss(im_dict, latent_in)
                 loss.backward()
-                self.optimizer.step()
+                optimizer.step()
 
                 if self.opts.verbose:
                     pbar.set_description('Embedding: Loss: {:.3f}, L2 loss: {:.3f}, Perceptual loss: {:.3f}, P-norm loss: {:.3f}'
