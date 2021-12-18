@@ -1,6 +1,6 @@
 # Improved StyleGAN Embedding: Where are the Good Latents? 
 
-> [**Improved StyleGAN Embedding: Where are the Good Latents? **]<br/>
+> **Improved StyleGAN Embedding: Where are the Good Latents? **<br/>
 [Peihao Zhu](https://github.com/ZPdesu),
 [Rameen Abdal](https://github.com/RameenAbdal),
 [Yipeng Qin](https://scholar.google.com/citations?user=ojgWPpgAAAAJ&hl=en),
