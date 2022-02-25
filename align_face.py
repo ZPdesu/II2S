@@ -1,31 +1,28 @@
-import numpy as np
-import PIL
-import PIL.Image
-import sys
+""" Create a cropped-image centered on a face. 
+
+"""
+
 import os
-import glob
-import scipy
-import scipy.ndimage
+from tempfile import mkstemp
 import dlib
-from drive import open_url
 from pathlib import Path
 import argparse
-from bicubic import BicubicDownSample
 import torchvision
+import urllib.request
 from shape_predictor import align_face
-from torch import nn
+from torch.hub import download_url_to_file
+import tqdm.auto as tq
 
-parser = argparse.ArgumentParser(description='Align_face')
-
-parser.add_argument('-input_dir', type=str, default='/media/zhup/My Passport/Raw/Ours', help='directory with unprocessed images')
-parser.add_argument('-output_dir', type=str, default='/media/zhup/My Passport/Our_dataset', help='output directory')
-
-parser.add_argument('-output_size', type=int, default=256, help='size to downscale the input images to, must be power of 2')
-parser.add_argument('-seed', type=int, help='manual seed to use')
-parser.add_argument('-cache_dir', type=str, default='cache', help='cache directory for model weights')
-
-###############
-parser.add_argument('-inter_method', type=str, default='bicubic')
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('input', type=str,  nargs='+',
+                    help='directory with unprocessed images')
+parser.add_argument('--output_dir', '-o', type=str, default='.', 
+                    help='output directory')
+parser.add_argument('--output_size', '-s', type=int, default=256, choices=[2**n for n in range(5, 11)],
+                     help='size to downscale the input images to, must be power of 2')
+parser.add_argument('--seed', type=int, default=127,
+                    help='Random seed to use (for repeatability)')
+parser.add_argument('--cache_dir', type=str, default='cache', help='cache directory for model weights')
 
 
 
@@ -37,26 +34,38 @@ cache_dir.mkdir(parents=True, exist_ok=True)
 output_dir = Path(args.output_dir)
 output_dir.mkdir(parents=True,exist_ok=True)
 
-print("Downloading Shape Predictor")
-f=open_url("https://drive.google.com/uc?id=1huhv8PYpNNKbGCLOaYUjOgR1pY5pmbJx", cache_dir=cache_dir, return_path=True)
-predictor = dlib.shape_predictor(f)
+landmarks_file = str(cache_dir / 'face_landmarks.dat') 
+landmarks_url = "https://vision.csi.miamioh.edu/data/ii2s/shape_predictor_68_face_landmarks.dat"
+if not os.path.isfile(landmarks_file):
+    print("Downloading Shape Predictor")
+    download_url_to_file(landmarks_url, landmarks_file)
+predictor = dlib.shape_predictor(landmarks_file)
 
-for im in Path(args.input_dir).glob("*.*"):
-    faces = align_face(str(im),predictor)
+extensions = {
+    'image/jpeg':'.jpg',
+    'image/png': '.png',
+    'image/bmp': '.bmp',
+    'image/tiff': '.tif',
+}
 
-    for i,face in enumerate(faces):
-        if(args.output_size):
-            factor = 1024//args.output_size
-            assert args.output_size*factor == 1024
-            face_tensor = torchvision.transforms.ToTensor()(face).unsqueeze(0).cuda()
-            # if args.inter_method == 'bicubic':
-            #     D = BicubicDownSample(factor=factor)
-            #     face_tensor_lr = D(face_tensor)[0].cpu().detach().clamp(0, 1)
-            # elif args.inter_method == 'bilinear':
-            #     face_tensor_lr = nn.functional.interpolate(face_tensor, size=args.output_size, mode='bilinear')[0].cpu().detach().clamp(0, 1)
+for im in args.input:
+    
+    if im.startswith('http'):
+        dat = urllib.request.urlopen(im)
+        _, im = mkstemp(extensions.get(dat.info().get_content_type(), '.jpg'))
+        with open(im, 'wb') as f:
+            f.write(dat.read())
+        
+        stem, _ = os.path.splitext(os.path.basename(im))
+        faces = align_face(str(im),predictor)
 
-            face_tensor_lr = face_tensor[0].cpu().detach().clamp(0, 1)
-            face = torchvision.transforms.ToPILImage()(face_tensor_lr)
+        os.remove(im)
+    else:
+        stem, _ = os.path.splitext(os.path.basename(im))
+        faces = align_face(str(im),predictor)
 
-        # face.save(Path(args.output_dir) / (im.stem+f"_{i}.png"))
-        face.save(Path(args.output_dir) / (im.stem + f".png"))
+
+    for i, face in enumerate(faces):
+        output = str(output_dir / stem) + f".png"
+        face.save(output)
+        print(f"=> {output}")

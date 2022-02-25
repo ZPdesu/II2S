@@ -1,5 +1,7 @@
 
-from embedding import Embedding
+import sys
+from tqdm.std import tqdm
+from embedding import Embedding, make_embedding
 from torch.utils.data import Dataset, DataLoader
 from torch.nn import DataParallel
 from pathlib import Path
@@ -9,10 +11,13 @@ from math import log10, ceil
 import argparse
 from bicubic import BicubicDownSample
 import torch
+import tqdm as tq
 
 import numpy as np
-
 import os
+
+from ii2s.config import cfg
+
 # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 # os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp')
 # memory_gpu=[int(x.split()[2]) for x in open('tmp','r').readlines()]
@@ -22,10 +27,16 @@ import os
 
 
 class Images(Dataset):
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, pattern='*.png'):
+        """Construct a dataset of images to process
+
+        Args:
+            root_dir (str): The folder containing input image
+            pattern (str): The pattern used to glob for images in the root folder
+        """
         self.root_path = Path(root_dir)
-        # self.image_list = sorted(list(self.root_path.glob("*.JPEG")))
-        self.image_list = sorted(list(self.root_path.glob("*.png")))
+        self.image_list = sorted(list(self.root_path.glob(pattern)))
+
 
     def __len__(self):
         return len(self.image_list)
@@ -37,70 +48,84 @@ class Images(Dataset):
 
 
 
-parser = argparse.ArgumentParser(description='II2S')
+def run_reconstruction(args, cfg):
+    out_path = Path(args.output)
+    out_path.mkdir(parents=True, exist_ok=True)
 
 
-# I/O arguments
-parser.add_argument('--input_dir', type=str, default='input', help='input data directory')
-parser.add_argument('--output_dir', type=str, default='output/images', help='output data directory')
-parser.add_argument('--NPY_folder', default='output/latents', type=str)
-parser.add_argument('--In_W_space', type=bool, default=True)
-parser.add_argument('--L2_regularizer', action='store_true')
-parser.add_argument('--l2_regularize_weight', type=float, default=0.001)
-
-
-# StyleGAN2 setting
-parser.add_argument('--size', type=int, default=1024)
-parser.add_argument('--ckpt', type=str, default="stylegan2-ffhq-config-f.pt")
-parser.add_argument('--channel_multiplier', type=int, default=2)
-parser.add_argument('--latent', type=int, default=512)
-parser.add_argument('--n_mlp', type=int, default=8)
-
-
-# arguments
-parser.add_argument('-seed', type=int, help='manual seed to use')
-parser.add_argument('-loss_str', type=str, default="None", help='Loss function to use')
-parser.add_argument('-eps', type=float, default=0, help='Target for downscaling loss (L2)')
-parser.add_argument('-tile_latent', default=False, type=bool, help='Whether to forcibly tile the same latent 18 times')
-parser.add_argument('-opt_name', type=str, default='adam', help='Optimizer to use in projected gradient descent')
-parser.add_argument('-learning_rate', type=float, default=0.01, help='Learning rate to use during optimization')
-parser.add_argument('-steps', type=int, default=1500, help='Number of optimization steps')
-parser.add_argument('-lr_schedule', type=str, default='fixed', help='fixed, linear1cycledrop, linear1cycle')
-parser.add_argument('-save_intermediate', action='store_true',help='Whether to store and save intermediate HR and LR images during optimization')
-
-
-
-
-args = parser.parse_args()
-kwargs = vars(args)
-
-
-dataset = Images(kwargs["input_dir"])
-out_path = Path(kwargs["output_dir"])
-out_path.mkdir(parents=True, exist_ok=True)
-
-
-
-dataloader = DataLoader(dataset, batch_size=1)
-
-
-model = Embedding(args)
-
-toPIL = torchvision.transforms.ToPILImage()
-
-
-
-for count, (ref_im, ref_im_name) in enumerate(dataloader):
-    if (kwargs["save_intermediate"]):
-        padding = ceil(log10(100))
-        int_path_HR = Path(out_path / ref_im_name[0])
-        int_path_HR.mkdir(parents=True, exist_ok=True)
-        for j,(HR,LR) in enumerate(model(ref_im.cuda(),ref_im_name,**kwargs)):
-            toPIL(HR[0].cpu().detach().clamp(0, 1)).save(
-                int_path_HR / f"{ref_im_name[0]}_{j*50:0{padding}}.png")
-
+    if os.path.isfile(args.input):
+        root, pattern = os.path.split(args.input)
     else:
-        for j,(HR,LR) in enumerate(model(ref_im.cuda(), ref_im_name, **kwargs)):
-            # print(count)
-            toPIL(HR[0].cpu().detach().clamp(0, 1)).save(out_path / f"{ref_im_name[0]}.png")
+        root, pattern = args.input, '*.png'
+
+    dataset = Images(root, pattern)
+    dataloader = DataLoader(dataset, batch_size=1)
+    model = make_embedding(root, cfg)
+    toPIL = torchvision.transforms.ToPILImage()
+
+    if cfg.SAVE_INTERMEDIATE > 0:
+        save_freq = cfg.SAVE_INTERMEDIATE
+    else:
+        save_freq = sys.maxsize
+
+    for count, (ref_im, ref_im_name) in enumerate(tq.tqdm(dataloader, desc="Reconstructing")):
+         
+        for j, result in enumerate(model(ref_im.cuda(), ref_im_name), start=1):
+            if j % cfg.LOG_FREQ == 0:
+                tqdm.write(result['summary'])
+
+            if j % save_freq == 0:
+                int_path_HR = Path(out_path / ref_im_name[0])
+                int_path_HR.mkdir(parents=True, exist_ok=True)
+                image = toPIL(result['image'][0].detach().cpu().clamp(0, 1))
+                latent = result['latent'][0].detach().cpu().numpy()
+                image.save(int_path_HR / f"{ref_im_name[0]}_{j*50:06}.png")
+                np.save(int_path_HR / f"{ref_im_name[0]}_{j*50:06}.npy", latent)
+        
+        image = toPIL(result['image'][0].detach().cpu().clamp(0, 1))
+        latent = result['latent'][0].detach().cpu().numpy()
+        image.save(out_path / f"{ref_im_name[0]}.png")
+        np.save(out_path / f"{ref_im_name[0]}.npy", latent)
+
+
+def dump_config(args, cfg):
+    print(cfg.dump())
+
+actions = {
+    'reconstruction': run_reconstruction,
+    'dump-config': dump_config
+}
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='II2S', 
+                                    epilog="Additional configuration can be done "
+                                            "by editing a config file, and config "
+                                            "values can be overridden by passing "
+                                            "fully qualified Key-Value pairs as "
+                                            "additional command line options")
+
+
+    # I/O arguments
+    parser.add_argument('action', choices=list(actions.keys()), help="The action to perform")
+    parser.add_argument('--input', type=str, default='input', help='input image or directory')
+    parser.add_argument('--output', type=str, default='output', help='output data directory')
+    parser.add_argument('--NPY_folder', default='output/latents', type=str)
+    parser.add_argument('--config', '-c', help="the config file to use")
+
+
+
+    args, argv = parser.parse_known_args()
+
+    #  Read in additional config from a file
+    if args.config is not None:
+        cfg.merge_from_file(args.config)
+
+    # Override config with command line options in the format: SECTION.KEY Value
+    cfg.merge_from_list(argv)
+
+    # Do the corresponding action
+    actions[args.action](args, cfg)
+
 

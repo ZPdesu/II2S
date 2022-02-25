@@ -1,0 +1,22 @@
+name: ii2s
+channels:
+  - defaults
+dependencies:
+  - pip
+  - ipython
+  - scikit-learn
+  - scikit-image
+  - opencv
+  - scipy
+  - matplotlib
+  - pytorch::pytorch~=1.9
+  - pytorch::torchvision
+  - nvidia::cudatoolkit~=11.1
+  - conda-forge::dlib
+  - pip:
+    - yacs
+    - tqdm
+    - pdbpp
+    - gdown
+    - jedi~=0.18
+    - pytorch-msssim

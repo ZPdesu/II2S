@@ -1,17 +1,10 @@
 import numpy as np
 import PIL
 import PIL.Image
-import sys
-import os
-import glob
 import scipy
 import scipy.ndimage
 import dlib
-from drive import open_url
 from pathlib import Path
-import argparse
-from bicubic import BicubicDownSample
-import torchvision
 
 """
 brief: face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
