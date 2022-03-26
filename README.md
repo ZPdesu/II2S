@@ -1,6 +1,5 @@
 # Improved StyleGAN Embedding: Where are the Good Latents?
 
-> **Improved StyleGAN Embedding: Where are the Good Latents? **<br/>
 [Peihao Zhu](https://github.com/ZPdesu),
 [Rameen Abdal](https://github.com/RameenAbdal),
 [Yipeng Qin](https://scholar.google.com/citations?user=ojgWPpgAAAAJ&hl=en),
@@ -8,7 +7,7 @@
 [Peter Wonka](http://peterwonka.net/)<br/>
 
 
-> [arXiv](https://arxiv.org/abs/2012.09036) | [BibTeX](#bibtex) | [Video](https://youtu.be/6grbAFtKvBU)
+[arXiv](https://arxiv.org/abs/2012.09036) | [BibTeX](#bibtex) | [Video](https://youtu.be/6grbAFtKvBU)
 
 
 > **Abstract** StyleGAN is able to produce photorealistic images that are almost indistinguishable from real photos. The reverse problem of finding an embedding for a given image poses a challenge. Embeddings that reconstruct an image well are not always robust to editing operations. In this paper, we address the problem of finding an embedding that both reconstructs images and also supports image editing tasks. First, we introduce a new normalized space to analyze the diversity and the quality of the reconstructed latent codes. This space can help answer the question of where good latent codes are located in latent space. Second, we propose an improved embedding algorithm using a novel regularization method based on our analysis. Finally, we analyze the quality of different embedding algorithms. We compare our results with the current state-of-the-art methods and achieve a better trade-off between reconstruction quality and editing quality.
@@ -52,7 +51,7 @@ If the automatic download doesn't work, please download the pre-trained models f
 |[AFHQ-Wild StyleGAN](https://drive.google.com/uc?id=14OnzO4QWaAytKXVqcfWo_o2MzoR4ygnr)) | StyleGAN model pretrained on [AFHQ-Wild](https://github.com/clovaai/stargan-v2) with 512x512 output resolution.
 |[Face Landmark Model](https://drive.google.com/uc?id=17kwWXLN9fA6acrBWqfuQCBdcc1ULmBc9) | Face landmark model used in [dlib](http://dlib.net/face_landmark_detection.py.html).
 
-By default, we assume that all models are downloaded and saved to the directory `pretrained_models`. 
+By default, we assume that all models are downloaded and saved to the directory `pretrained_models`.
 
 
 ## Embedding
