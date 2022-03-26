@@ -8,9 +8,11 @@ from utils.bicubic import BicubicDownSample
 from datasets.image_dataset import ImagesDataset
 from losses.loss import LossBuilder
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
+import dlib
 import PIL
 import torchvision
+from utils.model_utils import download_weight
 toPIL = torchvision.transforms.ToPILImage()
 
 class II2S(nn.Module):
@@ -21,7 +23,7 @@ class II2S(nn.Module):
         self.net = Net(self.opts)
         self.load_downsampling()
         self.setup_loss_builder()
-        print(100)
+        self.set_up_face_predictor()
 
 
     def load_downsampling(self):
@@ -54,9 +56,10 @@ class II2S(nn.Module):
         return optimizer, latent
 
 
-    def setup_dataloader(self, image_path=None):
+    def setup_dataloader(self, image_path=None, align_input=False):
 
-        self.dataset = ImagesDataset(opts=self.opts,image_path=image_path)
+        self.dataset = ImagesDataset(opts=self.opts, image_path=image_path,
+                                     face_predictor=self.predictor, align_input=align_input)
         self.dataloader = DataLoader(self.dataset, batch_size=1, shuffle=False)
         print("Number of images: {}".format(len(self.dataset)))
 
@@ -64,15 +67,25 @@ class II2S(nn.Module):
         self.loss_builder = LossBuilder(self.opts)
 
 
-    def invert_images(self, image_path=None):
+    def set_up_face_predictor(self):
+        self.predictor = None
+        predictor_weight = os.path.join('pretrained_models', 'shape_predictor_68_face_landmarks.dat')
+        download_weight(predictor_weight)
+        self.predictor = dlib.shape_predictor(predictor_weight)
 
 
-        self.setup_dataloader(image_path=image_path)
+    def invert_images(self, image_path=None, output_dir=None, return_latents=False, align_input=False, save_output=True):
+
+        final_latents =None
+        if return_latents:
+            final_latents = []
+
+        self.setup_dataloader(image_path=image_path, align_input=align_input)
         device = self.opts.device
         ibar = tqdm(self.dataloader, desc='Images')
         for ref_im_H, ref_im_L, ref_name in ibar:
             optimizer, latent = self.setup_optimizer()
-            pbar = tqdm(range(self.opts.steps), desc='Embedding', leave=False)
+            pbar = tqdm(range(self.opts.steps), desc='Embedding')
             for step in pbar:
                 optimizer.zero_grad()
                 latent_in = torch.stack(latent).unsqueeze(0)
@@ -93,12 +106,16 @@ class II2S(nn.Module):
                     pbar.set_description('Embedding: Loss: {:.3f}, L2 loss: {:.3f}, Perceptual loss: {:.3f}, P-norm loss: {:.3f}'
                                          .format(loss, loss_dic['l2'], loss_dic['percep'], loss_dic['p-norm']))
 
-                if self.opts.save_intermediate and step % self.opts.save_interval== 0:
-                    self.save_intermediate_results(ref_name, gen_im, latent_in, step)
+                if self.opts.save_intermediate and step % self.opts.save_interval==0 and save_output:
+                    self.save_intermediate_results(ref_name, gen_im, latent_in, step, output_dir)
 
-            self.save_results(ref_name, gen_im, latent_in)
+            if save_output:
+                self.save_results(ref_name, gen_im, latent_in, output_dir)
 
+            if return_latents:
+                final_latents.append(latent_in)
 
+        return final_latents
 
 
     def cal_loss(self, im_dict, latent_in):
@@ -110,11 +127,11 @@ class II2S(nn.Module):
         return loss, loss_dic
 
 
-    def save_results(self, ref_name, gen_im, latent_in):
+    def save_results(self, ref_name, gen_im, latent_in, output_dir):
         save_im = toPIL(((gen_im[0] + 1) / 2).detach().cpu().clamp(0, 1))
         save_latent = latent_in.detach().cpu().numpy()
 
-        output_dir = self.opts.output_dir
+
         os.makedirs(output_dir, exist_ok=True)
 
         latent_path = os.path.join(output_dir, f'{ref_name[0]}.npy')
@@ -124,13 +141,13 @@ class II2S(nn.Module):
         np.save(latent_path, save_latent)
 
 
-    def save_intermediate_results(self, ref_name, gen_im, latent_in, step):
+    def save_intermediate_results(self, ref_name, gen_im, latent_in, step, output_dir):
 
         save_im = toPIL(((gen_im[0] + 1) / 2).detach().cpu().clamp(0, 1))
         save_latent = latent_in.detach().cpu().numpy()
 
 
-        intermediate_folder = os.path.join(self.opts.output_dir, ref_name[0])
+        intermediate_folder = os.path.join(output_dir, ref_name[0])
         os.makedirs(intermediate_folder, exist_ok=True)
 
         latent_path = os.path.join(intermediate_folder, f'{ref_name[0]}_{step:04}.npy')
